@@ -14,7 +14,7 @@
         <input v-model.number="newAd.bathroomCount" type="number" placeholder="浴室数量" min="1" required />
         <input v-model.number="newAd.price" type="number" step="0.01" placeholder="价格" min="0" required />
         <input type="checkbox" v-model="newAd.isAvailable" /> 可用
-        <!-- 文件上传输入框 -->
+        <!-- 文件上传控件 -->
         <input type="file" multiple @change="handleFileChange" />
         <button type="submit">提交</button>
         <button @click="showAddForm = false">取消</button>
@@ -23,7 +23,7 @@
 
     <!-- 广告列表 -->
     <ul>
-      <li v-for="ad in advertisements" :key="ad.adId" style="border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
+      <li v-for="ad in advertisements" :key="ad.adId" class="ad-item">
         <h3>{{ ad.title }}</h3> 
         <p>{{ ad.address }}</p>
         <p>{{ ad.description }}</p>
@@ -34,25 +34,19 @@
         <p>创建时间: {{ formatDate(ad.createdAt) }}</p>
         <p>更新时间: {{ formatDate(ad.updatedAt) }}</p>
         <!-- 展示广告关联的图片 -->
-        <div v-if="ad.images && ad.images.length > 0">
+        <div>
           <h4>广告图片</h4>
-          <div v-for="(image, index) in ad.images" :key="image.imageId">
-            <img :src="image.filePath" :alt="'广告 ' + ad.adId + ' 的图片 ' + (index + 1)" style="max-width: 200px; max-height: 200px;">
-            <button @click="deleteImage(ad.adId, image.imageId, index)">删除</button>
-            <button @click="downloadImage(image.filePath, image.fileName)">下载</button>
+          <div v-for="image in ad.images" :key="image.imageId">
+            <!-- 假设 filePath 是图片的完整访问路径 -->
+            <img :src="image.filePath" :alt="image.fileName" style="max-width: 200px; max-height: 200px;">
+            <p>{{ image.fileName }}</p>
+            <a :href="image.filePath" :download="image.fileName">下载</a>
           </div>
         </div>
-        <button @click="editAd = { ...ad, newFiles: [] }">编辑</button>
+        <button @click="editAd = ad">编辑</button>
         <button @click="deleteAdvertisement(ad.adId)">删除</button>
       </li>
     </ul>
-
-    <!-- 分页组件 -->
-    <div>
-      <button @click="prevPage" :disabled="currentPage === 1">上一页</button>
-      <span>当前页: {{ currentPage }}</span>
-      <button @click="nextPage" :disabled="currentPage * pageSize >= total">下一页</button>
-    </div>
 
     <!-- 编辑广告表单 -->
     <div v-if="editAd">
@@ -65,26 +59,36 @@
         <input v-model.number="editAd.bathroomCount" type="number" placeholder="浴室数量" min="1" required />
         <input v-model.number="editAd.price" type="number" step="0.01" placeholder="价格" min="0" required />
         <input type="checkbox" v-model="editAd.isAvailable" /> 可用
-        <!-- 展示已有的图片 -->
-        <div v-if="editAd.images && editAd.images.length > 0">
+        <!-- 文件上传控件 -->
+        <input type="file" multiple @change="handleEditFileChange" />
+        <!-- 显示已有的图片 -->
+        <div class="image-container">
           <h4>已有图片</h4>
-          <div v-for="(image, index) in editAd.images" :key="image.imageId">
-            <img :src="image.filePath" :alt="'广告 ' + editAd.adId + ' 的图片 ' + (index + 1)" style="max-width: 200px; max-height: 200px;">
-            <button @click="removeImageFromEdit(index)">删除</button>
-            <button @click="downloadImage(image.filePath, image.fileName)">下载</button>
+          <div class="image-list">
+            <div v-for="(image, index) in editAd.images" :key="image.imageId" class="image-item">
+              <img :src="image.filePath" :alt="image.fileName" class="image">
+              <p>{{ image.fileName }}</p>
+              <a :href="image.filePath" :download="image.fileName">下载</a>
+              <button @click="deleteEditImage(index)">删除</button>
+            </div>
           </div>
         </div>
-        <!-- 上传新图片 -->
-        <input type="file" multiple @change="handleEditFileChange" />
         <button type="submit">保存</button>
         <button @click="editAd = null">取消</button>
       </form>
+    </div>
+
+    <!-- 分页控件 -->
+    <div>
+      <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1">上一页</button>
+      <span>当前第 {{ currentPage }} 页，共 {{ Math.ceil(total / pageSize) }} 页</span>
+      <button @click="changePage(currentPage + 1)" :disabled="currentPage === Math.ceil(total / pageSize)">下一页</button>
     </div>
   </div>
 </template>
 
 <script>
-import axios from 'axios';
+import api from '@/api';
 
 export default {
   data() {
@@ -92,21 +96,20 @@ export default {
       advertisements: [],
       showAddForm: false,
       newAd: {
-        userId: 1, // 添加 userId 字段并初始化为 1
         title: '',
         address: '',
         description: '',
         bedroomCount: 1,
         bathroomCount: 1,
         price: 0,
-        isAvailable: true,
-        images: []
+        isAvailable: true
       },
       editAd: null,
       currentPage: 1,
       pageSize: 2,
       total: 0,
-      selectedFiles: [] // 存储用户选择的文件
+      selectedFiles: [],
+      editSelectedFiles: []
     };
   },
   mounted() {
@@ -115,182 +118,176 @@ export default {
   methods: {
     async fetchAdvertisements() {
       try {
-        const response = await axios.get('http://localhost:8080/api/ads', {
+        // 传递 page 和 pageSize 参数
+        const response = await api.get('/api/ads', {
           params: {
-            page: this.currentPage - 1,
+            page: this.currentPage - 1, // 假设后端页码从 0 开始
             pageSize: this.pageSize
           }
         });
-        this.advertisements = response.data.records;
-        this.total = response.data.total;
-        console.log('获取到的广告数据:', this.advertisements); 
+        this.advertisements = response.records;
+        this.total = response.total;
       } catch (error) {
         console.error('获取广告列表失败', error);
       }
     },
+    // 处理文件选择事件
     handleFileChange(event) {
       this.selectedFiles = Array.from(event.target.files);
     },
-    handleEditFileChange(event) {
-      this.editAd.newFiles = Array.from(event.target.files);
-    },
     async addAdvertisement() {
       try {
-        const adResponse = await axios.post('http://localhost:8080/api/ads', this.newAd);
-        const newAdId = adResponse.data.adId;
+        // 先创建广告
+        const adResponse = await api.post('/api/ads', this.newAd);
+        const adId = adResponse.adId;
 
-        for (const file of this.selectedFiles) {
+        // 上传图片
+        for (let i = 0; i < this.selectedFiles.length; i++) {
+          const file = this.selectedFiles[i];
           const formData = new FormData();
           formData.append('file', file);
-          formData.append('adId', newAdId);
-          formData.append('displayOrder', 0); 
-          formData.append('isPrimary', false); 
+          formData.append('adId', adId);
+          formData.append('displayOrder', i);
+          formData.append('isPrimary', i === 0); // 假设第一张图片为主图
 
-          const imageResponse = await axios.post('http://localhost:8080/api/images/upload', formData, {
+          await api.post('/api/images/upload', formData, {
             headers: {
               'Content-Type': 'multipart/form-data'
             }
           });
-
-          if (imageResponse.status === 201) {
-            this.newAd.images.push(imageResponse.data);
-          }
         }
 
-        this.advertisements.push({ ...adResponse.data, images: this.newAd.images });
+        // 重新获取广告列表
+        this.fetchAdvertisements();
         this.showAddForm = false;
         this.newAd = {
-          userId: 1,
           title: '',
           address: '',
           description: '',
           bedroomCount: 1,
           bathroomCount: 1,
           price: 0,
-          isAvailable: true,
-          images: []
+          isAvailable: true
         };
-        this.selectedFiles = [];
-        this.fetchAdvertisements(); 
+        this.selectedFiles = []; // 清空选择的文件
       } catch (error) {
-        console.error('添加广告失败', error);
+        console.error('添加广告或上传图片失败', error);
+      }
+    },
+    // 处理编辑时的文件选择事件
+    handleEditFileChange(event) {
+      this.editSelectedFiles = Array.from(event.target.files);
+    },
+    // 删除编辑时的图片
+    async deleteEditImage(index) {
+      const imageToDelete = this.editAd.images[index];
+      try {
+        // 向后端发送删除请求
+        const response = await api.delete(`/api/images/${imageToDelete.imageId}`);
+        if (response === '删除成功') {
+          // 从本地数据中移除该图片
+          this.editAd.images.splice(index, 1);
+          alert('图片删除成功');
+        } else {
+          alert('图片删除失败，请稍后重试');
+        }
+      } catch (error) {
+        console.error('删除图片时出错:', error);
+        alert('删除图片时出错，请稍后重试');
       }
     },
     async updateAdvertisement() {
       try {
-        // 更新广告基本信息
-        await axios.put(`http://localhost:8080/api/ads/${this.editAd.adId}`, this.editAd);
+        // 先更新广告信息
+        const response = await api.put(`/api/ads/${this.editAd.adId}`, this.editAd);
+        if (response === '更新成功') {
+          // 上传新选择的图片
+          for (let i = 0; i < this.editSelectedFiles.length; i++) {
+            const file = this.editSelectedFiles[i];
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('adId', this.editAd.adId);
+            formData.append('displayOrder', i);
+            formData.append('isPrimary', i === 0); // 假设第一张图片为主图
 
-        // 删除标记要删除的图片
-        const imagesToDelete = this.editAd.images.filter(image => image._toDelete);
-        for (const image of imagesToDelete) {
-          await axios.delete(`http://localhost:8080/api/images/${image.imageId}`);
-        }
-        this.editAd.images = this.editAd.images.filter(image => !image._toDelete);
-
-        // 上传新图片
-        for (const file of this.editAd.newFiles) {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('adId', this.editAd.adId);
-          formData.append('displayOrder', 0); 
-          formData.append('isPrimary', false); 
-
-          const imageResponse = await axios.post('http://localhost:8080/api/images/upload', formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data'
-            }
-          });
-
-          if (imageResponse.status === 201) {
-            this.editAd.images.push(imageResponse.data);
+            await api.post('/api/images/upload', formData, {
+              headers: {
+                'Content-Type': 'multipart/form-data'
+              }
+            });
           }
+          // 重新获取广告列表
+          this.fetchAdvertisements();
+          this.editAd = null;
+          this.editSelectedFiles = [];
         }
-
-        await this.fetchAdvertisements(); 
-        this.editAd = null;
       } catch (error) {
         console.error('更新广告失败', error);
       }
     },
     async deleteAdvertisement(id) {
       try {
-        const response = await axios.delete(`http://localhost:8080/api/ads/${id}`);
-        if (response.data === '删除成功') {
-          await this.fetchAdvertisements(); 
+        const response = await api.delete(`/api/ads/${id}`);
+        if (response === '删除成功') {
+          this.advertisements = this.advertisements.filter(ad => ad.adId !== id);
+          // 删除成功后重新获取数据
+          this.fetchAdvertisements(); 
         }
       } catch (error) {
         console.error('删除广告失败', error);
       }
     },
-    formatDate(date) {
-      if (!date) return '';
-      const d = new Date(date);
-      let month = `${d.getMonth() + 1}`;
-      let day = `${d.getDate()}`;
-      const year = d.getFullYear();
-
-      if (month.length < 2) {
-        month = `0${month}`;
+    formatDate(dateArray) {
+      if (!Array.isArray(dateArray) || dateArray.length < 6) {
+        return '无效日期';
       }
-      if (day.length < 2) {
-        day = `0${day}`;
+      // 月份需要减 1，因为 Date 构造函数中月份从 0 开始
+      const [year, month, day, hour, minute, second] = dateArray;
+      const date = new Date(year, month - 1, day, hour, minute, second);
+      if (isNaN(date.getTime())) {
+        return '无效日期';
       }
-
-      return [year, month, day].join('-');
+      return date.toLocaleString();
     },
-    prevPage() {
-      if (this.currentPage > 1) {
-        this.currentPage--;
+    changePage(page) {
+      if (page >= 1 && page <= Math.ceil(this.total / this.pageSize)) {
+        this.currentPage = page;
         this.fetchAdvertisements();
-      }
-    },
-    nextPage() {
-      if (this.currentPage * this.pageSize < this.total) {
-        this.currentPage++;
-        this.fetchAdvertisements();
-      }
-    },
-    removeImageFromEdit(index) {
-      // 标记图片为要删除
-      this.editAd.images[index]._toDelete = true;
-      // 从显示列表中移除
-      this.editAd.images.splice(index, 1);
-    },
-    async deleteImage(adId, imageId, index) {
-      try {
-        await axios.delete(`http://localhost:8080/api/images/${imageId}`);
-        this.advertisements.find(ad => ad.adId === adId).images.splice(index, 1);
-      } catch (error) {
-        console.error('删除图片失败', error);
-      }
-    },
-    async downloadImage(filePath, fileName) {
-      try {
-        const response = await axios.get(filePath, {
-          responseType: 'blob' // 以二进制形式接收响应
-        });
-
-        // 创建一个 Blob 对象
-        const blob = new Blob([response.data]);
-        // 创建一个 URL 对象
-        const url = window.URL.createObjectURL(blob);
-        // 创建一个 <a> 元素
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', fileName); // 设置下载的文件名
-        // 将 <a> 元素添加到文档中
-        document.body.appendChild(link);
-        // 模拟点击 <a> 元素触发下载
-        link.click();
-        // 移除 <a> 元素
-        document.body.removeChild(link);
-        // 释放 URL 对象
-        window.URL.revokeObjectURL(url);
-      } catch (error) {
-        console.error('下载图片失败', error);
       }
     }
   }
 };
 </script>
+
+<style scoped>
+.ad-item {
+  border: 1px solid #ccc;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.image-container {
+  margin-top: 10px;
+}
+
+.image-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.image-item {
+  border: 1px solid #eee;
+  padding: 10px;
+  border-radius: 5px;
+  text-align: center;
+}
+
+.image {
+  /* 调整图片的最大宽度和最大高度 */
+  max-width: 150px; 
+  max-height: 150px; 
+}
+</style>

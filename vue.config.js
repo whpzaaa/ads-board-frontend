@@ -32,3 +32,18 @@ module.exports = {
     // }
   }
 };
+
+// vue.config.js 示例
+module.exports = {
+  devServer: {
+    proxy: {
+      // 错误的代理配置可能导致请求地址被修改
+      '/api': {
+        target: 'http://localhost:8080',
+        pathRewrite: {
+          '^/api': ''
+        }
+      }
+    }
+  }
+}
