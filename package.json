@@ -11,7 +11,12 @@
     "axios": "^1.8.4",
     "core-js": "^3.8.3",
     "vue": "^3.2.13",
+<<<<<<< HEAD
     "vue-router": "^4.5.0"
+=======
+    "vue-router": "^4.5.0",
+    "vuex": "^4.0.2"
+>>>>>>> 26cae8b (权限控制)
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",

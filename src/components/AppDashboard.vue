@@ -4,6 +4,11 @@
     <button @click="handleLogout">登出</button>
     <button @click="showChangePassword = true">账号管理</button>
     <button @click="viewAdvertisements">查看广告</button>
+<<<<<<< HEAD
+=======
+    <!-- 只有 admin 角色显示用户管理按钮 -->
+    <button v-if="userRole === 'admin'" @click="manageUsers">管理用户</button>
+>>>>>>> 26cae8b (权限控制)
 
     <div v-if="showChangePassword">
       <h3>修改密码</h3>
@@ -19,6 +24,10 @@
 
 <script>
 import api from '@/api';
+<<<<<<< HEAD
+=======
+import { useStore } from 'vuex';
+>>>>>>> 26cae8b (权限控制)
 
 export default {
   name: 'AppDashboard',
@@ -34,6 +43,15 @@ export default {
       }
     };
   },
+<<<<<<< HEAD
+=======
+  setup() {
+    const store = useStore();
+    return {
+      userRole: store.state.userRole
+    };
+  },
+>>>>>>> 26cae8b (权限控制)
   methods: {
     handleLogout() {
       localStorage.removeItem('token');
@@ -64,6 +82,13 @@ export default {
     viewAdvertisements() {
       // 使用 $router.push 跳转到 AdBoard 页面
       this.$router.push({ name: 'AdBoard' }); 
+<<<<<<< HEAD
+=======
+    },
+    manageUsers() {
+      console.log('尝试跳转到用户管理页面');
+      this.$router.push({ name: 'UserManagement' });
+>>>>>>> 26cae8b (权限控制)
     }
   }
 };

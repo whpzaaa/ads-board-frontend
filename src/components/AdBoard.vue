@@ -1,10 +1,18 @@
 <template>
   <div>
     <h1>广告看板</h1>
+<<<<<<< HEAD
     <button @click="showAddForm = true">添加广告</button>
 
     <!-- 添加广告表单 -->
     <div v-if="showAddForm">
+=======
+    <!-- 让 landlord 和 admin 角色都能显示添加广告按钮 -->
+    <button v-if="['landlord', 'admin'].includes(userRole)" @click="showAddForm = true">添加广告</button>
+
+    <!-- 添加广告表单 -->
+    <div v-if="showAddForm && ['landlord', 'admin'].includes(userRole)">
+>>>>>>> 26cae8b (权限控制)
       <h2>添加广告</h2>
       <form @submit.prevent="addAdvertisement">
         <input v-model="newAd.title" placeholder="标题" required />
@@ -23,7 +31,12 @@
 
     <!-- 广告列表 -->
     <ul>
+<<<<<<< HEAD
       <li v-for="ad in advertisements" :key="ad.adId" class="ad-item">
+=======
+        <!-- 广告信息 -->
+        <li v-for="ad in advertisements" :key="ad.adId" class="ad-item">
+>>>>>>> 26cae8b (权限控制)
         <h3>{{ ad.title }}</h3> 
         <p>{{ ad.address }}</p>
         <p>{{ ad.description }}</p>
@@ -43,13 +56,23 @@
             <a :href="image.filePath" :download="image.fileName">下载</a>
           </div>
         </div>
+<<<<<<< HEAD
         <button @click="editAd = ad">编辑</button>
         <button @click="deleteAdvertisement(ad.adId)">删除</button>
+=======
+        <!-- 让 landlord 和 admin 角色都能显示编辑和删除按钮 -->
+        <button v-if="['landlord', 'admin'].includes(userRole)" @click="editAd = ad">编辑</button>
+        <button v-if="['landlord', 'admin'].includes(userRole)" @click="deleteAdvertisement(ad.adId)">删除</button>
+>>>>>>> 26cae8b (权限控制)
       </li>
     </ul>
 
     <!-- 编辑广告表单 -->
+<<<<<<< HEAD
     <div v-if="editAd">
+=======
+    <div v-if="editAd && ['landlord', 'admin'].includes(userRole)">
+>>>>>>> 26cae8b (权限控制)
       <h2>编辑广告</h2>
       <form @submit.prevent="updateAdvertisement">
         <input v-model="editAd.title" placeholder="标题" required />
@@ -89,6 +112,10 @@
 
 <script>
 import api from '@/api';
+<<<<<<< HEAD
+=======
+import { useStore } from 'vuex';
+>>>>>>> 26cae8b (权限控制)
 
 export default {
   data() {
@@ -112,6 +139,15 @@ export default {
       editSelectedFiles: []
     };
   },
+<<<<<<< HEAD
+=======
+  setup() {
+    const store = useStore();
+    return {
+      userRole: store.state.userRole
+    };
+  },
+>>>>>>> 26cae8b (权限控制)
   mounted() {
     this.fetchAdvertisements();
   },
@@ -237,6 +273,7 @@ export default {
         console.error('删除广告失败', error);
       }
     },
+<<<<<<< HEAD
     formatDate(dateArray) {
       if (!Array.isArray(dateArray) || dateArray.length < 6) {
         return '无效日期';
@@ -244,6 +281,13 @@ export default {
       // 月份需要减 1，因为 Date 构造函数中月份从 0 开始
       const [year, month, day, hour, minute, second] = dateArray;
       const date = new Date(year, month - 1, day, hour, minute, second);
+=======
+    formatDate(dateString) {
+      if (typeof dateString !== 'string') {
+        return '无效日期';
+      }
+      const date = new Date(dateString);
+>>>>>>> 26cae8b (权限控制)
       if (isNaN(date.getTime())) {
         return '无效日期';
       }
@@ -290,4 +334,8 @@ export default {
   max-width: 150px; 
   max-height: 150px; 
 }
+<<<<<<< HEAD
 </style>
+=======
+</style>
+>>>>>>> 26cae8b (权限控制)
